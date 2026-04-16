@@ -1,0 +1,351 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.app{display:flex;min-height:640px;background:var(--color-background-tertiary);font-family:var(--font-sans)}
+.sidebar{width:210px;background:#0F6E56;flex-shrink:0;display:flex;flex-direction:column;padding:1.25rem 0.75rem;gap:2px}
+.logo{font-size:18px;font-weight:500;color:#fff;margin-bottom:1.5rem;padding:0 8px;letter-spacing:1px}
+.logo span{opacity:.6}
+.nav{padding:8px 10px;border-radius:var(--border-radius-md);cursor:pointer;font-size:13px;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:9px;transition:background .15s}
+.nav:hover{background:rgba(255,255,255,.1)}
+.nav.active{background:rgba(255,255,255,.18);color:#fff;font-weight:500}
+.badge-nav{background:rgba(255,255,255,.25);color:#fff;font-size:11px;padding:1px 7px;border-radius:20px;margin-left:auto}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);padding:0.9rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.topbar-title{font-size:16px;font-weight:500;color:var(--color-text-primary)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#1D9E75}
+.topbar-info{font-size:12px;color:var(--color-text-secondary)}
+.avatar{width:32px;height:32px;border-radius:50%;background:#0F6E56;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#fff}
+.content{flex:1;padding:1.25rem;overflow:auto}
+.panel{display:none}
+.panel.active{display:block}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem}
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.9rem 1rem}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.metric-value{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.metric-sub{font-size:11px;color:#1D9E75;margin-top:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.1rem}
+.card-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:.9rem;display:flex;justify-content:space-between;align-items:center}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th{text-align:left;color:var(--color-text-secondary);font-weight:400;padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px}
+.table td{padding:8px 8px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:middle}
+.table tr:last-child td{border-bottom:none}
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;white-space:nowrap}
+.b-transit{background:#E1F5EE;color:#0F6E56}
+.b-pending{background:#FAEEDA;color:#854F0B}
+.b-delivered{background:#EAF3DE;color:#3B6D11}
+.b-cancelled{background:#FCEBEB;color:#A32D2D}
+.b-online{background:#E1F5EE;color:#0F6E56}
+.b-busy{background:#FAEEDA;color:#854F0B}
+.b-offline{background:#F1EFE8;color:#5F5E5A}
+.action-btn{padding:4px 10px;font-size:12px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;color:var(--color-text-secondary)}
+.action-btn:hover{background:var(--color-background-secondary)}
+.action-btn.assign{border-color:#1D9E75;color:#0F6E56}
+.search-bar{display:flex;gap:8px;margin-bottom:1rem}
+.search-bar input{flex:1;padding:7px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary)}
+.search-bar select{padding:7px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary)}
+.map-mock{background:var(--color-background-secondary);border-radius:var(--border-radius-md);height:180px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;margin-bottom:.9rem}
+.map-grid{position:absolute;inset:0;opacity:.15;background-image:linear-gradient(var(--color-border-tertiary) 1px,transparent 1px),linear-gradient(90deg,var(--color-border-tertiary) 1px,transparent 1px);background-size:30px 30px}
+.map-pin{position:absolute;width:10px;height:10px;border-radius:50%;border:2px solid #fff}
+.map-label{position:absolute;font-size:10px;color:var(--color-text-secondary);white-space:nowrap}
+.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px}
+.stat-row:last-child{border-bottom:none}
+.bar-wrap{height:6px;background:var(--color-background-secondary);border-radius:3px;flex:1;margin:0 10px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:#1D9E75}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);padding:1.5rem;width:400px;border:0.5px solid var(--color-border-tertiary)}
+.modal-title{font-size:16px;font-weight:500;margin-bottom:1rem;color:var(--color-text-primary)}
+.form-row{display:flex;flex-direction:column;gap:5px;margin-bottom:.9rem}
+.form-row label{font-size:12px;color:var(--color-text-secondary)}
+.form-row input,.form-row select{padding:8px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary)}
+.btn-row{display:flex;justify-content:flex-end;gap:8px;margin-top:1rem}
+.btn{padding:8px 16px;border-radius:var(--border-radius-md);font-size:13px;cursor:pointer;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)}
+.btn-primary{background:#1D9E75;border-color:#1D9E75;color:#fff}
+.notify{position:fixed;top:16px;right:16px;background:#1D9E75;color:#fff;padding:10px 16px;border-radius:var(--border-radius-md);font-size:13px;z-index:200;display:none;transition:opacity .3s}
+</style>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="logo">ABZ<span>END</span><br><span style="font-size:10px;opacity:.5;letter-spacing:0">Admin</span></div>
+    <div class="nav active" onclick="show('overview',this)">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      Resumen
+    </div>
+    <div class="nav" onclick="show('orders',this)">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg>
+      Órdenes
+      <span class="badge-nav">24</span>
+    </div>
+    <div class="nav" onclick="show('repartidores',this)">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.31 2.69-6 6-6s6 2.69 6 6"/></svg>
+      Repartidores
+      <span class="badge-nav">8</span>
+    </div>
+    <div class="nav" onclick="show('mapa',this)">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="7" r="3"/><path d="M8 1C5.24 1 3 3.24 3 7c0 4 5 8 5 8s5-4 5-8c0-3.76-2.24-6-5-6z"/></svg>
+      Mapa en vivo
+    </div>
+    <div class="nav" onclick="show('reportes',this)">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1,12 5,7 9,9 15,3"/></svg>
+      Reportes
+    </div>
+    <div style="margin-top:auto">
+      <div class="nav" onclick="show('config',this)">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>
+        Configuración
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title" id="topbar-title">Resumen general</span>
+      <div class="topbar-right">
+        <div class="status-dot pulse"></div>
+        <span class="topbar-info">En vivo · Actualizado hace 30s</span>
+        <div class="avatar">AD</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- RESUMEN -->
+      <div class="panel active" id="panel-overview">
+        <div class="metrics">
+          <div class="metric"><div class="metric-label">Órdenes hoy</div><div class="metric-value">47</div><div class="metric-sub">+12% vs ayer</div></div>
+          <div class="metric"><div class="metric-label">En tránsito</div><div class="metric-value">18</div><div class="metric-sub">6 rutas activas</div></div>
+          <div class="metric"><div class="metric-label">Entregados hoy</div><div class="metric-value">24</div><div class="metric-sub">Tasa: 96.2%</div></div>
+          <div class="metric"><div class="metric-label">Ingresos hoy</div><div class="metric-value">$8,340</div><div class="metric-sub">Meta: $10,000</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-title">Órdenes recientes</div>
+            <table class="table">
+              <thead><tr><th>Guía</th><th>Destino</th><th>Estado</th><th>Acción</th></tr></thead>
+              <tbody>
+                <tr><td>#AB-1050</td><td>Guadalajara</td><td><span class="badge b-pending">Pendiente</span></td><td><button class="action-btn assign" onclick="assignOrder()">Asignar</button></td></tr>
+                <tr><td>#AB-1049</td><td>Monterrey</td><td><span class="badge b-transit">En tránsito</span></td><td><button class="action-btn">Ver</button></td></tr>
+                <tr><td>#AB-1048</td><td>Puebla</td><td><span class="badge b-transit">En tránsito</span></td><td><button class="action-btn">Ver</button></td></tr>
+                <tr><td>#AB-1047</td><td>Querétaro</td><td><span class="badge b-delivered">Entregado</span></td><td><button class="action-btn">Ver</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-title">Repartidores activos</div>
+            <table class="table">
+              <thead><tr><th>Repartidor</th><th>Estado</th><th>Órdenes</th></tr></thead>
+              <tbody>
+                <tr><td>Luis Herrera</td><td><span class="badge b-busy">Ocupado</span></td><td>3 asignadas</td></tr>
+                <tr><td>Marco Díaz</td><td><span class="badge b-online">Disponible</span></td><td>1 asignada</td></tr>
+                <tr><td>Sofía Ruiz</td><td><span class="badge b-busy">Ocupado</span></td><td>2 asignadas</td></tr>
+                <tr><td>Pablo Torres</td><td><span class="badge b-offline">Sin conexión</span></td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Rendimiento por zona</div>
+          <div class="stat-row"><span style="min-width:80px;color:var(--color-text-secondary)">CDMX Norte</span><div class="bar-wrap"><div class="bar-fill" style="width:85%"></div></div><span style="font-size:12px;color:var(--color-text-secondary)">85%</span></div>
+          <div class="stat-row"><span style="min-width:80px;color:var(--color-text-secondary)">CDMX Sur</span><div class="bar-wrap"><div class="bar-fill" style="width:72%"></div></div><span style="font-size:12px;color:var(--color-text-secondary)">72%</span></div>
+          <div class="stat-row"><span style="min-width:80px;color:var(--color-text-secondary)">Ecatepec</span><div class="bar-wrap"><div class="bar-fill" style="width:61%"></div></div><span style="font-size:12px;color:var(--color-text-secondary)">61%</span></div>
+          <div class="stat-row"><span style="min-width:80px;color:var(--color-text-secondary)">Tlalnepantla</span><div class="bar-wrap"><div class="bar-fill" style="width:90%"></div></div><span style="font-size:12px;color:var(--color-text-secondary)">90%</span></div>
+        </div>
+      </div>
+
+      <!-- ÓRDENES -->
+      <div class="panel" id="panel-orders">
+        <div class="search-bar">
+          <input type="text" placeholder="Buscar por guía, cliente o destino...">
+          <select><option>Todos los estados</option><option>Pendiente</option><option>En tránsito</option><option>Entregado</option><option>Cancelado</option></select>
+          <select><option>Hoy</option><option>Esta semana</option><option>Este mes</option></select>
+          <button class="btn btn-primary" onclick="openModal()">+ Nueva orden</button>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Guía</th><th>Cliente</th><th>Origen</th><th>Destino</th><th>Servicio</th><th>Estado</th><th>Repartidor</th><th>Total</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>#AB-1050</td><td>Carlos M.</td><td>CDMX</td><td>Guadalajara</td><td>Express</td><td><span class="badge b-pending">Pendiente</span></td><td><span style="color:var(--color-text-tertiary)">Sin asignar</span></td><td>$237</td><td><button class="action-btn assign" onclick="assignOrder()">Asignar</button></td></tr>
+              <tr><td>#AB-1049</td><td>Ana G.</td><td>CDMX</td><td>Monterrey</td><td>Estándar</td><td><span class="badge b-transit">En tránsito</span></td><td>Luis H.</td><td>$180</td><td><button class="action-btn">Ver</button></td></tr>
+              <tr><td>#AB-1048</td><td>Pedro S.</td><td>CDMX</td><td>Puebla</td><td>Mismo día</td><td><span class="badge b-transit">En tránsito</span></td><td>Sofía R.</td><td>$310</td><td><button class="action-btn">Ver</button></td></tr>
+              <tr><td>#AB-1047</td><td>María L.</td><td>CDMX</td><td>Querétaro</td><td>Estándar</td><td><span class="badge b-delivered">Entregado</span></td><td>Marco D.</td><td>$140</td><td><button class="action-btn">Ver</button></td></tr>
+              <tr><td>#AB-1046</td><td>Roberto K.</td><td>CDMX</td><td>León</td><td>Express</td><td><span class="badge b-delivered">Entregado</span></td><td>Luis H.</td><td>$195</td><td><button class="action-btn">Ver</button></td></tr>
+              <tr><td>#AB-1045</td><td>Lucía P.</td><td>CDMX</td><td>Cancún</td><td>Estándar</td><td><span class="badge b-cancelled">Cancelado</span></td><td>—</td><td>$0</td><td><button class="action-btn">Ver</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- REPARTIDORES -->
+      <div class="panel" id="panel-repartidores">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
+          <button class="btn btn-primary" onclick="openModalRep()">+ Agregar repartidor</button>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Nombre</th><th>Teléfono</th><th>Zona</th><th>Estado</th><th>Órdenes activas</th><th>Calificación</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>Luis Herrera</td><td>55 1234 5678</td><td>CDMX Norte</td><td><span class="badge b-busy">Ocupado</span></td><td>3</td><td>4.8 ★</td><td><button class="action-btn">Ver ruta</button></td></tr>
+              <tr><td>Marco Díaz</td><td>55 2345 6789</td><td>CDMX Sur</td><td><span class="badge b-online">Disponible</span></td><td>1</td><td>4.9 ★</td><td><button class="action-btn">Ver ruta</button></td></tr>
+              <tr><td>Sofía Ruiz</td><td>55 3456 7890</td><td>Ecatepec</td><td><span class="badge b-busy">Ocupado</span></td><td>2</td><td>4.7 ★</td><td><button class="action-btn">Ver ruta</button></td></tr>
+              <tr><td>Pablo Torres</td><td>55 4567 8901</td><td>Tlalnepantla</td><td><span class="badge b-offline">Sin conexión</span></td><td>0</td><td>4.6 ★</td><td><button class="action-btn">Ver ruta</button></td></tr>
+              <tr><td>Elena Mora</td><td>55 5678 9012</td><td>CDMX Norte</td><td><span class="badge b-online">Disponible</span></td><td>0</td><td>5.0 ★</td><td><button class="action-btn">Ver ruta</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MAPA -->
+      <div class="panel" id="panel-mapa">
+        <div class="card">
+          <div class="card-title">Rastreo en tiempo real <span style="font-size:12px;color:#1D9E75;font-weight:400">● En vivo</span></div>
+          <div class="map-mock">
+            <div class="map-grid"></div>
+            <div class="map-pin pulse" style="background:#1D9E75;top:35%;left:30%"></div>
+            <div class="map-label" style="top:28%;left:26%">Luis H.</div>
+            <div class="map-pin pulse" style="background:#1D9E75;top:55%;left:55%"></div>
+            <div class="map-label" style="top:48%;left:51%">Marco D.</div>
+            <div class="map-pin pulse" style="background:#BA7517;top:65%;left:35%"></div>
+            <div class="map-label" style="top:58%;left:31%">Sofía R.</div>
+            <div class="map-pin" style="background:#888;top:45%;left:70%"></div>
+            <div class="map-label" style="top:38%;left:66%">Pablo T.</div>
+            <div style="position:absolute;bottom:8px;right:10px;font-size:11px;color:var(--color-text-tertiary)">Zona CDMX · Simulado</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+            <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.75rem;text-align:center">
+              <div style="font-size:20px;font-weight:500;color:var(--color-text-primary)">4</div>
+              <div style="font-size:11px;color:var(--color-text-secondary)">Repartidores activos</div>
+            </div>
+            <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.75rem;text-align:center">
+              <div style="font-size:20px;font-weight:500;color:var(--color-text-primary)">18</div>
+              <div style="font-size:11px;color:var(--color-text-secondary)">Paquetes en ruta</div>
+            </div>
+            <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.75rem;text-align:center">
+              <div style="font-size:20px;font-weight:500;color:#1D9E75)">42 min</div>
+              <div style="font-size:11px;color:var(--color-text-secondary)">Tiempo promedio</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORTES -->
+      <div class="panel" id="panel-reportes">
+        <div class="grid2">
+          <div class="card">
+            <div class="card-title">Ingresos por semana</div>
+            <div class="stat-row"><span style="color:var(--color-text-secondary);min-width:60px">Lun</span><div class="bar-wrap"><div class="bar-fill" style="width:70%"></div></div><span style="font-size:12px">$5,800</span></div>
+            <div class="stat-row"><span style="color:var(--color-text-secondary);min-width:60px">Mar</span><div class="bar-wrap"><div class="bar-fill" style="width:85%"></div></div><span style="font-size:12px">$7,200</span></div>
+            <div class="stat-row"><span style="color:var(--color-text-secondary);min-width:60px">Mié</span><div class="bar-wrap"><div class="bar-fill" style="width:60%"></div></div><span style="font-size:12px">$4,900</span></div>
+            <div class="stat-row"><span style="color:var(--color-text-secondary);min-width:60px">Jue</span><div class="bar-wrap"><div class="bar-fill" style="width:92%"></div></div><span style="font-size:12px">$8,100</span></div>
+            <div class="stat-row"><span style="color:var(--color-text-secondary);min-width:60px">Vie</span><div class="bar-wrap"><div class="bar-fill" style="width:78%"></div></div><span style="font-size:12px">$6,500</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Órdenes por tipo de servicio</div>
+            <div class="stat-row"><span style="color:var(--color-text-secondary);min-width:80px">Estándar</span><div class="bar-wrap"><div class="bar-fill" style="width:55%"></div></div><span style="font-size:12px">55%</span></div>
+            <div class="stat-row"><span style="color:var(--color-text-secondary);min-width:80px">Express</span><div class="bar-wrap"><div class="bar-fill" style="width:32%"></div></div><span style="font-size:12px">32%</span></div>
+            <div class="stat-row"><span style="color:var(--color-text-secondary);min-width:80px">Mismo día</span><div class="bar-wrap"><div class="bar-fill" style="width:13%"></div></div><span style="font-size:12px">13%</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Resumen del mes</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+            <div class="metric"><div class="metric-label">Total órdenes</div><div class="metric-value">1,248</div></div>
+            <div class="metric"><div class="metric-label">Tasa de entrega</div><div class="metric-value">96.2%</div></div>
+            <div class="metric"><div class="metric-label">Ingresos mes</div><div class="metric-value">$198K</div></div>
+            <div class="metric"><div class="metric-label">Clientes nuevos</div><div class="metric-value">84</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONFIGURACIÓN -->
+      <div class="panel" id="panel-config">
+        <div class="grid2">
+          <div class="card">
+            <div class="card-title">Configuración general</div>
+            <div class="form-row"><label>Nombre de la empresa</label><input value="ABZEND"></div>
+            <div class="form-row"><label>Correo de soporte</label><input value="soporte@abzend.mx"></div>
+            <div class="form-row"><label>Moneda</label><select><option>MXN — Peso mexicano</option><option>USD — Dólar</option></select></div>
+            <div class="btn-row"><button class="btn btn-primary">Guardar cambios</button></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Stripe — Pagos</div>
+            <div class="form-row"><label>Clave pública (pk_live_...)</label><input placeholder="pk_live_..." type="password"></div>
+            <div class="form-row"><label>Clave secreta (sk_live_...)</label><input placeholder="sk_live_..." type="password"></div>
+            <div class="form-row"><label>Modo</label><select><option>Producción</option><option>Pruebas (sandbox)</option></select></div>
+            <div class="btn-row"><button class="btn btn-primary">Conectar Stripe</button></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal asignar orden -->
+<div class="modal-overlay" id="modal-assign">
+  <div class="modal">
+    <div class="modal-title">Asignar orden #AB-1050</div>
+    <div class="form-row"><label>Repartidor disponible</label>
+      <select><option>Marco Díaz — CDMX Sur (Disponible)</option><option>Elena Mora — CDMX Norte (Disponible)</option></select>
+    </div>
+    <div class="form-row"><label>Prioridad</label>
+      <select><option>Normal</option><option>Alta</option><option>Urgente</option></select>
+    </div>
+    <div class="form-row"><label>Nota para repartidor</label><input placeholder="Ej. Entregar antes de las 6pm"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmAssign()">Confirmar asignación</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nuevo repartidor -->
+<div class="modal-overlay" id="modal-rep">
+  <div class="modal">
+    <div class="modal-title">Nuevo repartidor</div>
+    <div class="form-row"><label>Nombre completo</label><input placeholder="Nombre Apellido"></div>
+    <div class="form-row"><label>Teléfono</label><input placeholder="+52 55 0000 0000"></div>
+    <div class="form-row"><label>Zona asignada</label>
+      <select><option>CDMX Norte</option><option>CDMX Sur</option><option>Ecatepec</option><option>Tlalnepantla</option></select>
+    </div>
+    <div class="form-row"><label>Correo electrónico</label><input placeholder="repartidor@abzend.mx"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModalRep()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmRep()">Crear repartidor</button>
+    </div>
+  </div>
+</div>
+
+<div class="notify" id="notify"></div>
+
+<script>
+const titles={overview:'Resumen general',orders:'Gestión de órdenes',repartidores:'Repartidores',mapa:'Mapa en vivo',reportes:'Reportes',config:'Configuración'};
+function show(id,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  document.getElementById('topbar-title').textContent=titles[id]||id;
+}
+function openModal(){document.getElementById('modal-assign').classList.add('open')}
+function closeModal(){document.getElementById('modal-assign').classList.remove('open')}
+function openModalRep(){document.getElementById('modal-rep').classList.add('open')}
+function closeModalRep(){document.getElementById('modal-rep').classList.remove('open')}
+function assignOrder(){document.getElementById('modal-assign').classList.add('open')}
+function confirmAssign(){
+  closeModal();
+  toast('Orden #AB-1050 asignada a Marco Díaz');
+}
+function confirmRep(){
+  closeModalRep();
+  toast('Repartidor creado exitosamente');
+}
+function toast(msg){
+  const n=document.getElementById('notify');
+  n.textContent=msg;n.style.display='block';
+  setTimeout(()=>n.style.display='none',3000);
+}
+</script>
