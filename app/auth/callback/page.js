@@ -17,7 +17,7 @@ export default function Callback() {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code)
         if (!error && data.session) {
           console.log('Login exitoso:', data.user?.email)
-          router.push('/dashboard')
+          router.push('/admin')
           return
         }
         console.error('Exchange error:', error?.message)
@@ -27,7 +27,7 @@ export default function Callback() {
 
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        router.push('/dashboard')
+        router.push('/admin')
         return
       }
 
