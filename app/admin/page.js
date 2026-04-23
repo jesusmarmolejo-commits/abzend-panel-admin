@@ -62,7 +62,6 @@ const FORMAS_PAGO = [
   {id:'99',label:'99 - Por definir'},
 ]
 
-// ── NUEVO STATUS SITUACIÓN ESPECIAL (naranja) ──────────────────────
 const STATUS_CLIENTE_COLOR = {
   pendiente:          {bg:'#FAEEDA', text:'#92400E'},
   activo:             {bg:'#DCFCE7', text:'#166534'},
@@ -77,6 +76,14 @@ const STATUS_CLIENTE_LABEL = {
   bloqueado:          'Bloqueado',
   inactivo:           'Inactivo',
   situacion_especial: '⚠️ Situación Especial',
+}
+
+const ROLES_LABEL = {
+  admin: 'Administrador',
+  gerente_finanzas: 'Gerente de Finanzas',
+  client: 'Cliente',
+  driver: 'Repartidor',
+  station: 'Estación',
 }
 
 const CLIENTE_FORM_INITIAL = {
@@ -119,6 +126,10 @@ export default function AdminPanel() {
   const [selectedCliente, setSelectedCliente] = useState(null)
   const [docFiles, setDocFiles] = useState({csf:null, opinion_32d:null, identificacion:null, acta_constitutiva:null})
   const [rfcError, setRfcError] = useState('')
+  // Modal situación especial
+  const [showSitEspecialModal, setShowSitEspecialModal] = useState(false)
+  const [sitEspecialClienteId, setSitEspecialClienteId] = useState(null)
+  const [sitEspecialNota, setSitEspecialNota] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -143,7 +154,7 @@ export default function AdminPanel() {
       sb.from('orders').select('*, client:client_id(full_name,email), driver:driver_id(id,user:user_id(full_name)), events:order_events(status,status_code,created_at)').order('created_at',{ascending:false}),
       sb.from('users').select('*').eq('role','client').order('created_at',{ascending:false}),
       sb.from('drivers').select('*,user:user_id(full_name,email,phone)').order('created_at',{ascending:false}),
-      sb.from('clientes').select('*, direcciones:cliente_direcciones(*), contactos:cliente_contactos(*), documentos:cliente_documentos(*)').order('created_at',{ascending:false}),
+      sb.from('clientes').select('*, direcciones:cliente_direcciones(*), contactos:cliente_contactos(*), documentos:cliente_documentos(*), responsable:situacion_especial_por(full_name,email)').order('created_at',{ascending:false}),
     ])
     setOrders(ord || [])
     setClients(cli || [])
@@ -231,12 +242,44 @@ export default function AdminPanel() {
     }
   }
 
-  const cambiarStatusCliente = async (clienteId, nuevoStatus) => {
+  const cambiarStatusCliente = async (clienteId, nuevoStatus, nota = '') => {
     const sb = createClient()
-    await sb.from('clientes').update({ status: nuevoStatus }).eq('id', clienteId)
-    const labels = { activo:'✅ Cliente activado', bloqueado:'⛔ Cliente bloqueado', inactivo:'Cliente inactivado', situacion_especial:'⚠️ Situación especial marcada' }
+    const { data: { user: authUser } } = await sb.auth.getUser()
+    const { data: userData } = await sb.from('users').select('role, id, full_name').eq('auth_id', authUser.id).single()
+
+    if (!['admin', 'gerente_finanzas'].includes(userData.role)) {
+      showMsg('❌ Solo Admin o Gerente de Finanzas pueden cambiar el status del cliente')
+      return
+    }
+
+    const update = { status: nuevoStatus }
+    if (nuevoStatus === 'situacion_especial') {
+      update.situacion_especial_nota = nota
+      update.situacion_especial_por = userData.id
+      update.situacion_especial_fecha = new Date().toISOString()
+      update.situacion_especial_rol = userData.role
+    }
+
+    await sb.from('clientes').update(update).eq('id', clienteId)
+    const labels = { activo:'✅ Cliente activado', bloqueado:'⛔ Cliente bloqueado', inactivo:'Cliente inactivado', situacion_especial:'⚠️ Situación especial registrada' }
     showMsg(labels[nuevoStatus] || 'Status actualizado')
     await loadAll(sb)
+  }
+
+  // ── Situación Especial ────────────────────────────────────────────
+  const abrirSitEspecial = (clienteId) => {
+    setSitEspecialClienteId(clienteId)
+    setSitEspecialNota('')
+    setShowSitEspecialModal(true)
+    setSelectedCliente(null)
+  }
+
+  const confirmarSitEspecial = async () => {
+    if (!sitEspecialNota.trim()) { showMsg('❌ Escribe el motivo de la situación especial'); return }
+    await cambiarStatusCliente(sitEspecialClienteId, 'situacion_especial', sitEspecialNota)
+    setShowSitEspecialModal(false)
+    setSitEspecialClienteId(null)
+    setSitEspecialNota('')
   }
 
   const doAssign = async () => {
@@ -486,7 +529,6 @@ export default function AdminPanel() {
               </button>
             </div>
 
-            {/* Filtros rápidos por status */}
             <div style={{display:'flex',gap:8,marginBottom:'1rem',flexWrap:'wrap'}}>
               {Object.entries(STATUS_CLIENTE_LABEL).map(([key, label]) => {
                 const count = clientesB2B.filter(c=>c.status===key).length
@@ -548,7 +590,7 @@ export default function AdminPanel() {
                             </button>
                           )}
                           {c.status==='activo' && (
-                            <button onClick={()=>cambiarStatusCliente(c.id,'situacion_especial')}
+                            <button onClick={()=>abrirSitEspecial(c.id)}
                               style={{padding:'4px 8px',background:'#EA580C',color:'#fff',border:'none',borderRadius:5,cursor:'pointer',fontSize:11}}>
                               ⚠️ Sit. Especial
                             </button>
@@ -800,7 +842,6 @@ export default function AdminPanel() {
                 ))}
               </div>
               <div style={{flex:1,overflowY:'auto',padding:'1.5rem'}}>
-
                 {clienteTab==='fiscal' && (
                   <div style={{display:'flex',flexDirection:'column',gap:14}}>
                     <div>
@@ -846,7 +887,6 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 )}
-
                 {clienteTab==='comercial' && (
                   <div style={{display:'flex',flexDirection:'column',gap:14}}>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
@@ -876,13 +916,10 @@ export default function AdminPanel() {
                       </select>
                     </div>
                     <div style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:8,padding:'12px'}}>
-                      <p style={{fontSize:12,color:'#166534',margin:0}}>
-                        💡 Catálogos basados en el SAT para CFDI 4.0
-                      </p>
+                      <p style={{fontSize:12,color:'#166534',margin:0}}>💡 Catálogos basados en el SAT para CFDI 4.0</p>
                     </div>
                   </div>
                 )}
-
                 {clienteTab==='contacto' && (
                   <div style={{display:'flex',flexDirection:'column',gap:14}}>
                     <div style={{fontWeight:600,fontSize:13,color:text,marginBottom:4}}>📍 Dirección Principal</div>
@@ -930,7 +967,6 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 )}
-
                 {clienteTab==='documentos' && (
                   <div style={{display:'flex',flexDirection:'column',gap:16}}>
                     <p style={{fontSize:13,color:sub,margin:0}}>Sube los documentos del expediente digital. Todos son opcionales al crear, pero requeridos para activar el cliente.</p>
@@ -963,7 +999,6 @@ export default function AdminPanel() {
                   </div>
                 )}
               </div>
-
               <div style={{padding:'1rem 1.5rem',borderTop:`1px solid ${bdr}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <div style={{display:'flex',gap:8}}>
                   {clienteTab!=='fiscal' && (
@@ -1019,6 +1054,31 @@ export default function AdminPanel() {
                   </div>
                 ))}
               </div>
+
+              {/* SITUACIÓN ESPECIAL - info detallada */}
+              {selectedCliente.situacion_especial_nota && (
+                <div style={{marginBottom:'1.5rem',background:'#FFF0E0',border:'1px solid #EA580C',borderRadius:8,padding:'12px 16px'}}>
+                  <div style={{fontWeight:600,fontSize:13,color:'#C2410C',marginBottom:8}}>⚠️ Situación Especial</div>
+                  <div style={{fontSize:13,color:'#92400E',marginBottom:6}}>
+                    <b>Motivo:</b> {selectedCliente.situacion_especial_nota}
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    <div style={{fontSize:12,color:'#92400E'}}>
+                      <b>Registrado por:</b><br/>
+                      {selectedCliente.responsable?.full_name || selectedCliente.responsable?.email || '—'}
+                    </div>
+                    <div style={{fontSize:12,color:'#92400E'}}>
+                      <b>Rol:</b><br/>
+                      {ROLES_LABEL[selectedCliente.situacion_especial_rol] || selectedCliente.situacion_especial_rol || '—'}
+                    </div>
+                    <div style={{fontSize:12,color:'#92400E'}}>
+                      <b>Fecha:</b><br/>
+                      {fmtDate(selectedCliente.situacion_especial_fecha)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {selectedCliente.contactos?.length > 0 && (
                 <div style={{marginBottom:'1.5rem'}}>
                   <div style={{fontWeight:600,fontSize:13,marginBottom:8}}>👤 Contactos</div>
@@ -1052,7 +1112,7 @@ export default function AdminPanel() {
                   </button>
                 )}
                 {selectedCliente.status==='activo' && (
-                  <button onClick={()=>{cambiarStatusCliente(selectedCliente.id,'situacion_especial');setSelectedCliente(null)}}
+                  <button onClick={()=>abrirSitEspecial(selectedCliente.id)}
                     style={{padding:'8px 16px',background:'#EA580C',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>
                     ⚠️ Situación Especial
                   </button>
@@ -1077,6 +1137,41 @@ export default function AdminPanel() {
             </div>
           </div>
         )}
+
+        {/* MODAL SITUACIÓN ESPECIAL */}
+        {showSitEspecialModal && (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'1rem'}}>
+            <div style={{background:card,borderRadius:16,width:'100%',maxWidth:460,padding:'1.5rem',border:`1px solid ${bdr}`}}>
+              <h3 style={{fontWeight:700,fontSize:16,color:'#C2410C',marginBottom:8}}>⚠️ Marcar Situación Especial</h3>
+              <p style={{fontSize:13,color:sub,marginBottom:'1rem'}}>
+                Esta acción restringe operaciones del cliente. Escribe el motivo detallado.
+              </p>
+              <div style={{marginBottom:'1rem'}}>
+                <label style={{fontSize:12,color:sub,display:'block',marginBottom:4}}>Motivo *</label>
+                <textarea value={sitEspecialNota} onChange={e=>setSitEspecialNota(e.target.value)}
+                  placeholder="Ej: Cliente con adeudo vencido mayor a 30 días. Pendiente acuerdo de pago."
+                  rows={4}
+                  style={{width:'100%',padding:'9px 11px',border:`1px solid ${bdr}`,borderRadius:8,fontSize:13,color:text,background:bg,boxSizing:'border-box',resize:'vertical'}} />
+              </div>
+              <div style={{background:'#FFF0E0',border:'1px solid #EA580C',borderRadius:8,padding:'10px 12px',marginBottom:'1rem'}}>
+                <p style={{fontSize:12,color:'#92400E',margin:0}}>
+                  ⚠️ Solo <b>Admin</b> y <b>Gerente de Finanzas</b> pueden realizar este cambio. Quedará registrado con tu usuario, rol y fecha.
+                </p>
+              </div>
+              <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                <button onClick={()=>setShowSitEspecialModal(false)}
+                  style={{padding:'8px 16px',border:`1px solid ${bdr}`,borderRadius:8,background:'none',cursor:'pointer',fontSize:13,color:text}}>
+                  Cancelar
+                </button>
+                <button onClick={confirmarSitEspecial}
+                  style={{padding:'8px 18px',background:'#EA580C',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   )
