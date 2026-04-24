@@ -154,7 +154,7 @@ const [transportProcessing, setTransportProcessing] = useState(false)
     }
     init()
   }, [])
-
+const loadAll = async (sb) => {
   const [{ data: ord }, { data: cli }, { data: drv }, { data: b2b }, { data: tOrd }] = await Promise.all([
       sb.from('orders').select('*, client:client_id(full_name,email), driver:driver_id(id,user:user_id(full_name)), events:order_events(status,status_code,created_at)').order('created_at',{ascending:false}),
       sb.from('users').select('*').eq('role','client').order('created_at',{ascending:false}),
@@ -373,8 +373,6 @@ const [transportProcessing, setTransportProcessing] = useState(false)
     {id:'drivers',      label:'Repartidores',  icon:'🚚'},
     {id:'tracking',     label:'Rastreo',       icon:'🗺'},
     {id:'reports',      label:'Reportes',      icon:'📊'},
-    {id:'transporte',   label:'Transporte',    icon:'🚛'},
-  ]
     {id:'transporte',   label:'Transporte',    icon:'🚛'},
   ]
 
@@ -1422,4 +1420,4 @@ function TrackingMap({ drivers, dark }) {
     return () => { try { window.L?.map('admin-map')?.remove() } catch(e){} }
   }, [drivers])
   return <div id="admin-map" style={{width:'100%',height:'100%'}} />
-} 
+}
