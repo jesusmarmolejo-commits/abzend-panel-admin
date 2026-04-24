@@ -106,6 +106,8 @@ export default function AdminPanel() {
   const [statuses, setStatuses] = useState([])
   const [search, setSearch]     = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo]     = useState('')
   const [showOrderMenu, setShowOrderMenu] = useState(false)
   const [assignOrder, setAssignOrder]   = useState(null)
   const [assignDriver, setAssignDriver] = useState('')
@@ -339,8 +341,52 @@ export default function AdminPanel() {
   const filteredOrders = orders.filter(o => {
     const matchSearch = !search || o.tracking_code?.toLowerCase().includes(search.toLowerCase()) || o.client?.email?.toLowerCase().includes(search.toLowerCase())
     const matchStatus = filterStatus==='all' || o.status===filterStatus
-    return matchSearch && matchStatus
+    const matchFrom = !filterFrom || new Date(o.created_at) >= new Date(filterFrom)
+    const matchTo = !filterTo || new Date(o.created_at) <= new Date(filterTo+'T23:59:59')
+    return matchSearch && matchStatus && matchFrom && matchTo
   })
+
+  const exportExcel = (orders) => {
+    const headers = ['Tracking','Fecha','Cliente','Repartidor','Destino','Status','Total']
+    const rows = orders.map(o => [
+      o.tracking_code,
+      new Date(o.created_at).toLocaleDateString('es-MX'),
+      o.client?.full_name||o.client?.email||'—',
+      o.driver?.user?.full_name||'Sin asignar',
+      o.dest_address||'—',
+      STATUS_LABEL[o.status]||o.status,
+      o.total||0,
+    ])
+    const csv = [headers,...rows].map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n')
+    const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'})
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href=url; a.download=`ordenes_${new Date().toISOString().slice(0,10)}.csv`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportPDF = (orders) => {
+    const win = window.open('','_blank')
+    const rows = orders.map(o=>`<tr>
+      <td>${o.tracking_code}</td>
+      <td>${new Date(o.created_at).toLocaleDateString('es-MX')}</td>
+      <td>${o.client?.full_name||o.client?.email||'—'}</td>
+      <td>${o.driver?.user?.full_name||'Sin asignar'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.dest_address||'—'}</td>
+      <td>${STATUS_LABEL[o.status]||o.status}</td>
+      <td><b>$${Number(o.total||0).toFixed(2)}</b></td>
+    </tr>`).join('')
+    const total = orders.reduce((s,o)=>s+Number(o.total||0),0)
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Reporte Paquetería ABZEND</title>
+    <style>body{font-family:sans-serif;padding:24px}h1{color:#0F6E56;font-size:20px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#0F6E56;color:#fff;padding:7px 8px;text-align:left}td{padding:6px 8px;border-bottom:1px solid #eee}tr:nth-child(even) td{background:#f9f9f9}.tot td{font-weight:700;background:#E1F5EE;color:#0F6E56}@media print{button{display:none}}</style></head><body>
+    <h1>Reporte Paquetería — ABZEND</h1>
+    <p style="color:#666;font-size:12px">Generado el ${new Date().toLocaleString('es-MX')} · ${orders.length} orden${orders.length!==1?'es':''}</p>
+    <button onclick="window.print()" style="margin-bottom:16px;padding:8px 16px;background:#0F6E56;color:#fff;border:none;border-radius:6px;cursor:pointer">🖨️ Imprimir / Guardar PDF</button>
+    <table><thead><tr><th>Tracking</th><th>Fecha</th><th>Cliente</th><th>Repartidor</th><th>Destino</th><th>Status</th><th>Total</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr class="tot"><td colspan="6" style="text-align:right">TOTAL</td><td><b>$${total.toFixed(2)}</b></td></tr></tfoot>
+    </table></body></html>`)
+    win.document.close()
+  }
 
   const last7 = Array.from({length:7},(_,i)=>{
     const d = new Date(); d.setDate(d.getDate()-6+i)
@@ -482,10 +528,34 @@ export default function AdminPanel() {
                           style={{padding:'9px 14px',cursor:'pointer',fontSize:14,color:text}}>
                           {s==='all'?'Todos los estados':STATUS_LABEL[s]}{filterStatus===s&&' ✓'}
                         </div>
+                        
                       ))}
                     </div>
+                    
                   )}
                 </div>
+              </div>
+              <div style={{display:'flex',gap:8,marginBottom:'1rem',flexWrap:'wrap',alignItems:'center'}}>
+                <input type='date' value={filterFrom} onChange={e=>setFilterFrom(e.target.value)}
+                  style={{padding:'7px 11px',border:`1px solid ${bdr}`,borderRadius:8,fontSize:13,color:text,background:bg}} />
+                <span style={{fontSize:12,color:sub}}>al</span>
+                <input type='date' value={filterTo} onChange={e=>setFilterTo(e.target.value)}
+                  style={{padding:'7px 11px',border:`1px solid ${bdr}`,borderRadius:8,fontSize:13,color:text,background:bg}} />
+                {(filterFrom||filterTo) && (
+                  <button onClick={()=>{setFilterFrom('');setFilterTo('')}}
+                    style={{padding:'7px 12px',border:`1px solid ${bdr}`,borderRadius:8,fontSize:12,color:sub,background:bg,cursor:'pointer'}}>
+                    ✕ Limpiar fechas
+                  </button>
+                )}
+                <span style={{fontSize:12,color:sub,marginLeft:'auto'}}>{filteredOrders.length} orden{filteredOrders.length!==1?'es':''}</span>
+                <button onClick={()=>exportExcel(filteredOrders)} disabled={filteredOrders.length===0}
+                  style={{padding:'7px 12px',background:'#166534',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:12,fontWeight:500,opacity:filteredOrders.length===0?0.5:1}}>
+                  📊 Excel
+                </button>
+                <button onClick={()=>exportPDF(filteredOrders)} disabled={filteredOrders.length===0}
+                  style={{padding:'7px 12px',background:'#185FA5',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:12,fontWeight:500,opacity:filteredOrders.length===0?0.5:1}}>
+                  📄 PDF
+                </button>
               </div>
               <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
                 <thead>
