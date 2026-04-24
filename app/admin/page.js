@@ -119,6 +119,12 @@ export default function AdminPanel() {
   const [quoteResult, setQuoteResult] = useState(null)
   const [msg, setMsg] = useState('')
   const [clientesB2B, setClientesB2B] = useState([])
+  const [transportOrders, setTransportOrders] = useState([])
+const [selectedTransport, setSelectedTransport] = useState(null)
+const [transportStatusOrder, setTransportStatusOrder] = useState(null)
+const [newTransportStatus, setNewTransportStatus] = useState('')
+const [assignTransportDriver, setAssignTransportDriver] = useState('')
+const [transportProcessing, setTransportProcessing] = useState(false)
   const [showClienteForm, setShowClienteForm] = useState(false)
   const [clienteForm, setClienteForm] = useState(CLIENTE_FORM_INITIAL)
   const [clienteTab, setClienteTab] = useState('fiscal')
@@ -149,17 +155,18 @@ export default function AdminPanel() {
     init()
   }, [])
 
-  const loadAll = async (sb) => {
-    const [{ data: ord }, { data: cli }, { data: drv }, { data: b2b }] = await Promise.all([
+  const [{ data: ord }, { data: cli }, { data: drv }, { data: b2b }, { data: tOrd }] = await Promise.all([
       sb.from('orders').select('*, client:client_id(full_name,email), driver:driver_id(id,user:user_id(full_name)), events:order_events(status,status_code,created_at)').order('created_at',{ascending:false}),
       sb.from('users').select('*').eq('role','client').order('created_at',{ascending:false}),
       sb.from('drivers').select('*,user:user_id(full_name,email,phone)').order('created_at',{ascending:false}),
       sb.from('clientes').select('*, direcciones:cliente_direcciones(*), contactos:cliente_contactos(*), documentos:cliente_documentos(*), responsable:situacion_especial_por(full_name,email)').order('created_at',{ascending:false}),
+      sb.from('transport_orders').select('*, unit:unidad_id(nombre), client:client_id(full_name,email), driver:driver_id(id,user:user_id(full_name)), stops:transport_order_stops(*)').order('created_at',{ascending:false}),
     ])
     setOrders(ord || [])
     setClients(cli || [])
     setDrivers(drv || [])
     setClientesB2B(b2b || [])
+    setTransportOrders(tOrd || [])
   }
 
   const logout = async () => { const sb=createClient(); await sb.auth.signOut(); router.push('/login') }
@@ -366,6 +373,9 @@ export default function AdminPanel() {
     {id:'drivers',      label:'Repartidores',  icon:'🚚'},
     {id:'tracking',     label:'Rastreo',       icon:'🗺'},
     {id:'reports',      label:'Reportes',      icon:'📊'},
+    {id:'transporte',   label:'Transporte',    icon:'🚛'},
+  ]
+    {id:'transporte',   label:'Transporte',    icon:'🚛'},
   ]
 
   const CF = (f) => clienteForm[f]
@@ -759,6 +769,209 @@ export default function AdminPanel() {
           </div>
         )}
 
+       {/* TRANSPORTE */}
+        {section==='transporte' && (
+          <div>
+            <h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Transporte Terrestre FTL</h1>
+            <p style={{color:sub,marginBottom:'1.5rem',fontSize:14}}>Gestión de solicitudes de transporte.</p>
+
+            {/* KPIs */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:'1.5rem'}}>
+              {[
+                {label:'Total solicitudes', value:transportOrders.length, icon:'🚛'},
+                {label:'Pendientes',        value:transportOrders.filter(o=>o.status==='pending').length, icon:'⏳'},
+                {label:'En tránsito',       value:transportOrders.filter(o=>o.status==='in_transit').length, icon:'🛣️'},
+                {label:'Completadas',       value:transportOrders.filter(o=>o.status==='delivered').length, icon:'✅'},
+              ].map((k,i)=>(
+                <div key={i} style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:'1rem'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <span style={{fontSize:13,color:sub}}>{k.label}</span>
+                    <span style={{fontSize:18}}>{k.icon}</span>
+                  </div>
+                  <div style={{fontSize:26,fontWeight:700,color:text}}>{k.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tabla */}
+            <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,overflow:'hidden'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                <thead>
+                  <tr style={{borderBottom:`1px solid ${bdr}`}}>
+                    {['Tracking','Cliente','Ruta','Unidad','Fecha requerida','Total','Status','Acciones'].map(h=>(
+                      <th key={h} style={{textAlign:'left',padding:'12px 16px',color:sub,fontWeight:500,fontSize:12}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {transportOrders.length===0 && (
+                    <tr><td colSpan={8} style={{padding:'3rem',textAlign:'center',color:sub}}>No hay solicitudes de transporte.</td></tr>
+                  )}
+                  {transportOrders.map(o=>(
+                    <tr key={o.id} style={{borderBottom:`1px solid ${bdr}`}}>
+                      <td style={{padding:'12px 16px',fontWeight:600,fontSize:12}}>{o.tracking_code}</td>
+                      <td style={{padding:'12px 16px',color:sub,fontSize:12}}>{o.client?.full_name||o.client?.email||'—'}</td>
+                      <td style={{padding:'12px 16px',fontSize:12}}>{o.ruta}</td>
+                      <td style={{padding:'12px 16px',fontSize:12}}>{o.unit?.nombre}</td>
+                      <td style={{padding:'12px 16px',color:sub,fontSize:12}}>{o.fecha_requerida ? new Date(o.fecha_requerida).toLocaleDateString('es-MX') : '—'}</td>
+                      <td style={{padding:'12px 16px',fontWeight:600,fontSize:12}}>{fmtMoney(o.total)}</td>
+                      <td style={{padding:'12px 16px'}}>
+                        <span style={{
+                          fontSize:11,padding:'3px 10px',borderRadius:20,fontWeight:600,
+                          background:{pending:'#FAEEDA',confirmed:'#E1F5EE',in_transit:'#EFF6FF',delivered:'#DCFCE7',cancelled:'#FEE2E2'}[o.status]||'#F3F4F6',
+                          color:{pending:'#92400E',confirmed:'#065F46',in_transit:'#1E40AF',delivered:'#166534',cancelled:'#991B1B'}[o.status]||'#6B7280',
+                        }}>
+                          {{pending:'Pendiente',confirmed:'Confirmado',in_transit:'En tránsito',delivered:'Entregado',cancelled:'Cancelado'}[o.status]||o.status}
+                        </span>
+                      </td>
+                      <td style={{padding:'12px 16px'}}>
+                        <div style={{display:'flex',gap:4}}>
+                          <button onClick={()=>setSelectedTransport(o)}
+                            style={{padding:'4px 8px',background:'#185FA5',color:'#fff',border:'none',borderRadius:5,cursor:'pointer',fontSize:11}}>
+                            Ver
+                          </button>
+                          <button onClick={()=>{setTransportStatusOrder(o);setNewTransportStatus(o.status);setAssignTransportDriver(o.driver_id||'')}}
+                            style={{padding:'4px 8px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:5,cursor:'pointer',fontSize:11}}>
+                            Gestionar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL VER TRANSPORTE */}
+        {selectedTransport && (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:'1rem'}}>
+            <div style={{background:card,borderRadius:16,width:'100%',maxWidth:580,maxHeight:'85vh',overflowY:'auto',padding:'1.5rem'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
+                <h3 style={{fontWeight:700,fontSize:16,color:text}}>🚛 {selectedTransport.tracking_code}</h3>
+                <button onClick={()=>setSelectedTransport(null)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:sub}}>✕</button>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:'1.5rem'}}>
+                {[
+                  {label:'Cliente',        value:selectedTransport.client?.full_name||selectedTransport.client?.email||'—'},
+                  {label:'Ruta',           value:selectedTransport.ruta},
+                  {label:'Unidad',         value:selectedTransport.unit?.nombre},
+                  {label:'Peso (kg)',      value:selectedTransport.peso_kg||'—'},
+                  {label:'Volumen (m³)',   value:selectedTransport.volumen_m3||'—'},
+                  {label:'Fecha requerida',value:selectedTransport.fecha_requerida ? new Date(selectedTransport.fecha_requerida).toLocaleDateString('es-MX') : '—'},
+                  {label:'Subtotal',       value:fmtMoney(selectedTransport.subtotal)},
+                  {label:'IVA',            value:fmtMoney(selectedTransport.iva)},
+                  {label:'Retención',      value:fmtMoney(selectedTransport.retencion)},
+                  {label:'Total',          value:fmtMoney(selectedTransport.total)},
+                ].map((f,i)=>(
+                  <div key={i} style={{background:bg,borderRadius:8,padding:'10px 12px'}}>
+                    <div style={{fontSize:11,color:sub,marginBottom:2}}>{f.label}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:text}}>{f.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginBottom:8,fontSize:12,color:sub}}>
+                {selectedTransport.incluye_maniobra && '✓ Maniobra  '}
+                {selectedTransport.incluye_reparto && '✓ Reparto  '}
+                {selectedTransport.incluye_flete_falso && '✓ Flete en falso  '}
+              </div>
+              {selectedTransport.notas && (
+                <div style={{background:bg,borderRadius:8,padding:'10px 12px',marginBottom:'1rem',fontSize:13,color:sub,fontStyle:'italic'}}>
+                  📝 {selectedTransport.notas}
+                </div>
+              )}
+              {/* Paradas */}
+              {selectedTransport.stops?.length > 0 && (
+                <div style={{marginBottom:'1rem'}}>
+                  <div style={{fontWeight:600,fontSize:13,marginBottom:8}}>📍 Paradas</div>
+                  {[...selectedTransport.stops].sort((a,b)=>a.orden-b.orden).map((stop,i)=>(
+                    <div key={i} style={{
+                      background:stop.tipo==='carga'?'#F0FDF4':'#EFF6FF',
+                      border:`1px solid ${stop.tipo==='carga'?'#9FE1CB':'#BFDBFE'}`,
+                      borderRadius:8,padding:'10px 12px',marginBottom:6,fontSize:12
+                    }}>
+                      <div style={{fontWeight:600,color:stop.tipo==='carga'?'#0F6E56':'#185FA5',marginBottom:4}}>
+                        {stop.orden}. {stop.tipo==='carga'?'📦 CARGA':'📍 DESCARGA'} — {stop.alias||''}
+                      </div>
+                      <div style={{color:sub}}>{stop.calle||'Sin dirección'}</div>
+                      {stop.instrucciones && <div style={{color:sub,fontStyle:'italic',marginTop:2}}>{stop.instrucciones}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
+                <button onClick={()=>{setTransportStatusOrder(selectedTransport);setNewTransportStatus(selectedTransport.status);setAssignTransportDriver(selectedTransport.driver_id||'');setSelectedTransport(null)}}
+                  style={{padding:'8px 16px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>
+                  Gestionar
+                </button>
+                <button onClick={()=>setSelectedTransport(null)}
+                  style={{padding:'8px 16px',border:`1px solid ${bdr}`,borderRadius:8,background:'none',cursor:'pointer',fontSize:13,color:text}}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL GESTIONAR TRANSPORTE */}
+        {transportStatusOrder && (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:'1rem'}}>
+            <div style={{background:card,borderRadius:16,width:'100%',maxWidth:460,padding:'1.5rem',border:`1px solid ${bdr}`}}>
+              <h3 style={{fontWeight:700,fontSize:16,color:text,marginBottom:'1.25rem'}}>
+                🚛 Gestionar — {transportStatusOrder.tracking_code}
+              </h3>
+              <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                <div>
+                  <label style={{fontSize:12,color:sub,display:'block',marginBottom:4}}>Status</label>
+                  <select value={newTransportStatus} onChange={e=>setNewTransportStatus(e.target.value)}
+                    style={{width:'100%',padding:'9px',border:`1px solid ${bdr}`,borderRadius:8,fontSize:14,background:bg,color:text}}>
+                    {[
+                      {v:'pending',   l:'Pendiente'},
+                      {v:'confirmed', l:'Confirmado'},
+                      {v:'in_transit',l:'En tránsito'},
+                      {v:'delivered', l:'Entregado'},
+                      {v:'cancelled', l:'Cancelado'},
+                    ].map(s=><option key={s.v} value={s.v}>{s.l}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{fontSize:12,color:sub,display:'block',marginBottom:4}}>Asignar chofer</label>
+                  <select value={assignTransportDriver} onChange={e=>setAssignTransportDriver(e.target.value)}
+                    style={{width:'100%',padding:'9px',border:`1px solid ${bdr}`,borderRadius:8,fontSize:14,background:bg,color:text}}>
+                    <option value=''>— Sin asignar —</option>
+                    {drivers.map(d=>(
+                      <option key={d.id} value={d.id}>{d.user?.full_name||d.user?.email}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:'1.5rem'}}>
+                <button onClick={()=>setTransportStatusOrder(null)}
+                  style={{padding:'8px 16px',border:`1px solid ${bdr}`,borderRadius:8,background:'none',cursor:'pointer',fontSize:13,color:text}}>
+                  Cancelar
+                </button>
+                <button disabled={transportProcessing} onClick={async()=>{
+                  setTransportProcessing(true)
+                  try {
+                    const sb = createClient()
+                    await sb.from('transport_orders').update({
+                      status: newTransportStatus,
+                      driver_id: assignTransportDriver || null,
+                      status_updated_at: new Date().toISOString()
+                    }).eq('id', transportStatusOrder.id)
+                    setTransportStatusOrder(null)
+                    await loadAll(sb)
+                  } catch(e){ console.error(e) }
+                  finally { setTransportProcessing(false) }
+                }}
+                  style={{padding:'8px 18px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600,opacity:transportProcessing?0.6:1}}>
+                  {transportProcessing?'Guardando...':'Confirmar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* REPORTES */}
         {section==='reports' && (
           <div>
