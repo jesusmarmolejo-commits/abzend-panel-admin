@@ -120,11 +120,11 @@ export default function AdminPanel() {
   const [msg, setMsg] = useState('')
   const [clientesB2B, setClientesB2B] = useState([])
   const [transportOrders, setTransportOrders] = useState([])
-const [selectedTransport, setSelectedTransport] = useState(null)
-const [transportStatusOrder, setTransportStatusOrder] = useState(null)
-const [newTransportStatus, setNewTransportStatus] = useState('')
-const [assignTransportDriver, setAssignTransportDriver] = useState('')
-const [transportProcessing, setTransportProcessing] = useState(false)
+  const [selectedTransport, setSelectedTransport] = useState(null)
+  const [transportStatusOrder, setTransportStatusOrder] = useState(null)
+  const [newTransportStatus, setNewTransportStatus] = useState('')
+  const [assignTransportDriver, setAssignTransportDriver] = useState('')
+  const [transportProcessing, setTransportProcessing] = useState(false)
   const [showClienteForm, setShowClienteForm] = useState(false)
   const [clienteForm, setClienteForm] = useState(CLIENTE_FORM_INITIAL)
   const [clienteTab, setClienteTab] = useState('fiscal')
@@ -132,7 +132,6 @@ const [transportProcessing, setTransportProcessing] = useState(false)
   const [selectedCliente, setSelectedCliente] = useState(null)
   const [docFiles, setDocFiles] = useState({csf:null, opinion_32d:null, identificacion:null, acta_constitutiva:null})
   const [rfcError, setRfcError] = useState('')
-  // Modal situación especial
   const [showSitEspecialModal, setShowSitEspecialModal] = useState(false)
   const [sitEspecialClienteId, setSitEspecialClienteId] = useState(null)
   const [sitEspecialNota, setSitEspecialNota] = useState('')
@@ -154,8 +153,9 @@ const [transportProcessing, setTransportProcessing] = useState(false)
     }
     init()
   }, [])
-const loadAll = async (sb) => {
-  const [{ data: ord }, { data: cli }, { data: drv }, { data: b2b }, { data: tOrd }] = await Promise.all([
+
+  const loadAll = async (sb) => {
+    const [{ data: ord }, { data: cli }, { data: drv }, { data: b2b }, { data: tOrd }] = await Promise.all([
       sb.from('orders').select('*, client:client_id(full_name,email), driver:driver_id(id,user:user_id(full_name)), events:order_events(status,status_code,created_at)').order('created_at',{ascending:false}),
       sb.from('users').select('*').eq('role','client').order('created_at',{ascending:false}),
       sb.from('drivers').select('*,user:user_id(full_name,email,phone)').order('created_at',{ascending:false}),
@@ -253,12 +253,10 @@ const loadAll = async (sb) => {
     const sb = createClient()
     const { data: { user: authUser } } = await sb.auth.getUser()
     const { data: userData } = await sb.from('users').select('role, id, full_name').eq('auth_id', authUser.id).single()
-
     if (!['admin', 'gerente_finanzas'].includes(userData.role)) {
       showMsg('❌ Solo Admin o Gerente de Finanzas pueden cambiar el status del cliente')
       return
     }
-
     const update = { status: nuevoStatus }
     if (nuevoStatus === 'situacion_especial') {
       update.situacion_especial_nota = nota
@@ -266,14 +264,12 @@ const loadAll = async (sb) => {
       update.situacion_especial_fecha = new Date().toISOString()
       update.situacion_especial_rol = userData.role
     }
-
     await sb.from('clientes').update(update).eq('id', clienteId)
     const labels = { activo:'✅ Cliente activado', bloqueado:'⛔ Cliente bloqueado', inactivo:'Cliente inactivado', situacion_especial:'⚠️ Situación especial registrada' }
     showMsg(labels[nuevoStatus] || 'Status actualizado')
     await loadAll(sb)
   }
 
-  // ── Situación Especial ────────────────────────────────────────────
   const abrirSitEspecial = (clienteId) => {
     setSitEspecialClienteId(clienteId)
     setSitEspecialNota('')
@@ -366,14 +362,16 @@ const loadAll = async (sb) => {
 
   const navItems = [
     {id:'dashboard',    label:'Dashboard',     icon:'▦'},
-    {id:'orders',       label:'Órdenes',       icon:'📦'},
+    {id:'orders',       label:'Paquetería',    icon:'📦'},
+    {id:'maritimo',     label:'Marítimo',      icon:'🚢'},
+    {id:'aereo',        label:'Aéreo',         icon:'✈️'},
+    {id:'transporte',   label:'Transporte',    icon:'🚛'},
     {id:'clientes_b2b', label:'Clientes B2B',  icon:'🏢'},
     {id:'quote',        label:'Cotización',    icon:'🧮'},
     {id:'clients',      label:'Usuarios',      icon:'👤'},
     {id:'drivers',      label:'Repartidores',  icon:'🚚'},
     {id:'tracking',     label:'Rastreo',       icon:'🗺'},
     {id:'reports',      label:'Reportes',      icon:'📊'},
-    {id:'transporte',   label:'Transporte',    icon:'🚛'},
   ]
 
   const CF = (f) => clienteForm[f]
@@ -463,11 +461,11 @@ const loadAll = async (sb) => {
           </div>
         )}
 
-        {/* ÓRDENES */}
+        {/* PAQUETERÍA */}
         {section==='orders' && (
           <div>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.5rem'}}>
-              <div><h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Órdenes</h1><p style={{color:sub,fontSize:14}}>Gestiona los envíos de la plataforma.</p></div>
+              <div><h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Paquetería</h1><p style={{color:sub,fontSize:14}}>Gestiona los envíos de la plataforma.</p></div>
               <button onClick={()=>router.push('/orders/new')} style={{padding:'10px 18px',background:'#111827',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:14,fontWeight:600}}>Nueva Orden</button>
             </div>
             <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:'1rem',marginBottom:'1rem'}}>
@@ -523,6 +521,103 @@ const loadAll = async (sb) => {
           </div>
         )}
 
+        {/* MARÍTIMO */}
+        {section==='maritimo' && (
+          <div>
+            <h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Transporte Marítimo</h1>
+            <p style={{color:sub,marginBottom:'1.5rem',fontSize:14}}>FCL y LCL — próximamente disponible.</p>
+            <div style={{textAlign:'center',padding:'4rem 2rem',background:card,borderRadius:12,border:`1px solid ${bdr}`}}>
+              <div style={{fontSize:64,marginBottom:16}}>🚢</div>
+              <p style={{color:sub,fontSize:15,fontWeight:500}}>Módulo en desarrollo.</p>
+              <p style={{color:sub,fontSize:13,marginTop:4}}>Disponible en R2.</p>
+            </div>
+          </div>
+        )}
+
+        {/* AÉREO */}
+        {section==='aereo' && (
+          <div>
+            <h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Transporte Aéreo</h1>
+            <p style={{color:sub,marginBottom:'1.5rem',fontSize:14}}>Envíos express nacionales e internacionales — próximamente.</p>
+            <div style={{textAlign:'center',padding:'4rem 2rem',background:card,borderRadius:12,border:`1px solid ${bdr}`}}>
+              <div style={{fontSize:64,marginBottom:16}}>✈️</div>
+              <p style={{color:sub,fontSize:15,fontWeight:500}}>Módulo en desarrollo.</p>
+              <p style={{color:sub,fontSize:13,marginTop:4}}>Disponible en R2.</p>
+            </div>
+          </div>
+        )}
+
+        {/* TRANSPORTE */}
+        {section==='transporte' && (
+          <div>
+            <h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Transporte Terrestre FTL</h1>
+            <p style={{color:sub,marginBottom:'1.5rem',fontSize:14}}>Gestión de solicitudes de transporte.</p>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:'1.5rem'}}>
+              {[
+                {label:'Total solicitudes', value:transportOrders.length, icon:'🚛'},
+                {label:'Pendientes',        value:transportOrders.filter(o=>o.status==='pending').length, icon:'⏳'},
+                {label:'En tránsito',       value:transportOrders.filter(o=>o.status==='in_transit').length, icon:'🛣️'},
+                {label:'Completadas',       value:transportOrders.filter(o=>o.status==='delivered').length, icon:'✅'},
+              ].map((k,i)=>(
+                <div key={i} style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:'1rem'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <span style={{fontSize:13,color:sub}}>{k.label}</span>
+                    <span style={{fontSize:18}}>{k.icon}</span>
+                  </div>
+                  <div style={{fontSize:26,fontWeight:700,color:text}}>{k.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,overflow:'hidden'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                <thead>
+                  <tr style={{borderBottom:`1px solid ${bdr}`}}>
+                    {['Tracking','Cliente','Ruta','Unidad','Fecha requerida','Total','Status','Acciones'].map(h=>(
+                      <th key={h} style={{textAlign:'left',padding:'12px 16px',color:sub,fontWeight:500,fontSize:12}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {transportOrders.length===0 && (
+                    <tr><td colSpan={8} style={{padding:'3rem',textAlign:'center',color:sub}}>No hay solicitudes de transporte.</td></tr>
+                  )}
+                  {transportOrders.map(o=>(
+                    <tr key={o.id} style={{borderBottom:`1px solid ${bdr}`}}>
+                      <td style={{padding:'12px 16px',fontWeight:600,fontSize:12}}>{o.tracking_code}</td>
+                      <td style={{padding:'12px 16px',color:sub,fontSize:12}}>{o.client?.full_name||o.client?.email||'—'}</td>
+                      <td style={{padding:'12px 16px',fontSize:12}}>{o.ruta}</td>
+                      <td style={{padding:'12px 16px',fontSize:12}}>{o.unit?.nombre}</td>
+                      <td style={{padding:'12px 16px',color:sub,fontSize:12}}>{o.fecha_requerida ? new Date(o.fecha_requerida).toLocaleDateString('es-MX') : '—'}</td>
+                      <td style={{padding:'12px 16px',fontWeight:600,fontSize:12}}>{fmtMoney(o.total)}</td>
+                      <td style={{padding:'12px 16px'}}>
+                        <span style={{
+                          fontSize:11,padding:'3px 10px',borderRadius:20,fontWeight:600,
+                          background:{pending:'#FAEEDA',confirmed:'#E1F5EE',in_transit:'#EFF6FF',delivered:'#DCFCE7',cancelled:'#FEE2E2'}[o.status]||'#F3F4F6',
+                          color:{pending:'#92400E',confirmed:'#065F46',in_transit:'#1E40AF',delivered:'#166534',cancelled:'#991B1B'}[o.status]||'#6B7280',
+                        }}>
+                          {{pending:'Pendiente',confirmed:'Confirmado',in_transit:'En tránsito',delivered:'Entregado',cancelled:'Cancelado'}[o.status]||o.status}
+                        </span>
+                      </td>
+                      <td style={{padding:'12px 16px'}}>
+                        <div style={{display:'flex',gap:4}}>
+                          <button onClick={()=>setSelectedTransport(o)}
+                            style={{padding:'4px 8px',background:'#185FA5',color:'#fff',border:'none',borderRadius:5,cursor:'pointer',fontSize:11}}>
+                            Ver
+                          </button>
+                          <button onClick={()=>{setTransportStatusOrder(o);setNewTransportStatus(o.status);setAssignTransportDriver(o.driver_id||'')}}
+                            style={{padding:'4px 8px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:5,cursor:'pointer',fontSize:11}}>
+                            Gestionar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* CLIENTES B2B */}
         {section==='clientes_b2b' && (
           <div>
@@ -536,7 +631,6 @@ const loadAll = async (sb) => {
                 + Nuevo Cliente
               </button>
             </div>
-
             <div style={{display:'flex',gap:8,marginBottom:'1rem',flexWrap:'wrap'}}>
               {Object.entries(STATUS_CLIENTE_LABEL).map(([key, label]) => {
                 const count = clientesB2B.filter(c=>c.status===key).length
@@ -552,7 +646,6 @@ const loadAll = async (sb) => {
                 )
               })}
             </div>
-
             <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,overflow:'hidden'}}>
               <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
                 <thead>
@@ -767,77 +860,22 @@ const loadAll = async (sb) => {
           </div>
         )}
 
-       {/* TRANSPORTE */}
-        {section==='transporte' && (
+        {/* REPORTES */}
+        {section==='reports' && (
           <div>
-            <h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Transporte Terrestre FTL</h1>
-            <p style={{color:sub,marginBottom:'1.5rem',fontSize:14}}>Gestión de solicitudes de transporte.</p>
-
-            {/* KPIs */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:'1.5rem'}}>
+            <h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Reportes y Analíticas</h1>
+            <p style={{color:sub,marginBottom:'1.5rem',fontSize:14}}>Métricas de desempeño de la plataforma.</p>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
               {[
-                {label:'Total solicitudes', value:transportOrders.length, icon:'🚛'},
-                {label:'Pendientes',        value:transportOrders.filter(o=>o.status==='pending').length, icon:'⏳'},
-                {label:'En tránsito',       value:transportOrders.filter(o=>o.status==='in_transit').length, icon:'🛣️'},
-                {label:'Completadas',       value:transportOrders.filter(o=>o.status==='delivered').length, icon:'✅'},
+                {label:'Total órdenes', value:stats.total},
+                {label:'Tasa de entrega', value:stats.total>0?`${Math.round((stats.completed/stats.total)*100)}%`:'0%'},
+                {label:'Ingresos totales', value:fmtMoney(stats.revenue)},
               ].map((k,i)=>(
-                <div key={i} style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:'1rem'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                    <span style={{fontSize:13,color:sub}}>{k.label}</span>
-                    <span style={{fontSize:18}}>{k.icon}</span>
-                  </div>
-                  <div style={{fontSize:26,fontWeight:700,color:text}}>{k.value}</div>
+                <div key={i} style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:'1rem',textAlign:'center'}}>
+                  <div style={{fontSize:22,fontWeight:700,color:text,marginBottom:4}}>{k.value}</div>
+                  <div style={{fontSize:12,color:sub}}>{k.label}</div>
                 </div>
               ))}
-            </div>
-
-            {/* Tabla */}
-            <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,overflow:'hidden'}}>
-              <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
-                <thead>
-                  <tr style={{borderBottom:`1px solid ${bdr}`}}>
-                    {['Tracking','Cliente','Ruta','Unidad','Fecha requerida','Total','Status','Acciones'].map(h=>(
-                      <th key={h} style={{textAlign:'left',padding:'12px 16px',color:sub,fontWeight:500,fontSize:12}}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {transportOrders.length===0 && (
-                    <tr><td colSpan={8} style={{padding:'3rem',textAlign:'center',color:sub}}>No hay solicitudes de transporte.</td></tr>
-                  )}
-                  {transportOrders.map(o=>(
-                    <tr key={o.id} style={{borderBottom:`1px solid ${bdr}`}}>
-                      <td style={{padding:'12px 16px',fontWeight:600,fontSize:12}}>{o.tracking_code}</td>
-                      <td style={{padding:'12px 16px',color:sub,fontSize:12}}>{o.client?.full_name||o.client?.email||'—'}</td>
-                      <td style={{padding:'12px 16px',fontSize:12}}>{o.ruta}</td>
-                      <td style={{padding:'12px 16px',fontSize:12}}>{o.unit?.nombre}</td>
-                      <td style={{padding:'12px 16px',color:sub,fontSize:12}}>{o.fecha_requerida ? new Date(o.fecha_requerida).toLocaleDateString('es-MX') : '—'}</td>
-                      <td style={{padding:'12px 16px',fontWeight:600,fontSize:12}}>{fmtMoney(o.total)}</td>
-                      <td style={{padding:'12px 16px'}}>
-                        <span style={{
-                          fontSize:11,padding:'3px 10px',borderRadius:20,fontWeight:600,
-                          background:{pending:'#FAEEDA',confirmed:'#E1F5EE',in_transit:'#EFF6FF',delivered:'#DCFCE7',cancelled:'#FEE2E2'}[o.status]||'#F3F4F6',
-                          color:{pending:'#92400E',confirmed:'#065F46',in_transit:'#1E40AF',delivered:'#166534',cancelled:'#991B1B'}[o.status]||'#6B7280',
-                        }}>
-                          {{pending:'Pendiente',confirmed:'Confirmado',in_transit:'En tránsito',delivered:'Entregado',cancelled:'Cancelado'}[o.status]||o.status}
-                        </span>
-                      </td>
-                      <td style={{padding:'12px 16px'}}>
-                        <div style={{display:'flex',gap:4}}>
-                          <button onClick={()=>setSelectedTransport(o)}
-                            style={{padding:'4px 8px',background:'#185FA5',color:'#fff',border:'none',borderRadius:5,cursor:'pointer',fontSize:11}}>
-                            Ver
-                          </button>
-                          <button onClick={()=>{setTransportStatusOrder(o);setNewTransportStatus(o.status);setAssignTransportDriver(o.driver_id||'')}}
-                            style={{padding:'4px 8px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:5,cursor:'pointer',fontSize:11}}>
-                            Gestionar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         )}
@@ -879,7 +917,6 @@ const loadAll = async (sb) => {
                   📝 {selectedTransport.notas}
                 </div>
               )}
-              {/* Paradas */}
               {selectedTransport.stops?.length > 0 && (
                 <div style={{marginBottom:'1rem'}}>
                   <div style={{fontWeight:600,fontSize:13,marginBottom:8}}>📍 Paradas</div>
@@ -970,25 +1007,6 @@ const loadAll = async (sb) => {
             </div>
           </div>
         )}
-        {/* REPORTES */}
-        {section==='reports' && (
-          <div>
-            <h1 style={{fontSize:24,fontWeight:700,marginBottom:4}}>Reportes y Analíticas</h1>
-            <p style={{color:sub,marginBottom:'1.5rem',fontSize:14}}>Métricas de desempeño de la plataforma.</p>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
-              {[
-                {label:'Total órdenes', value:stats.total},
-                {label:'Tasa de entrega', value:stats.total>0?`${Math.round((stats.completed/stats.total)*100)}%`:'0%'},
-                {label:'Ingresos totales', value:fmtMoney(stats.revenue)},
-              ].map((k,i)=>(
-                <div key={i} style={{background:card,border:`1px solid ${bdr}`,borderRadius:10,padding:'1rem',textAlign:'center'}}>
-                  <div style={{fontSize:22,fontWeight:700,color:text,marginBottom:4}}>{k.value}</div>
-                  <div style={{fontSize:12,color:sub}}>{k.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* MODAL ASIGNAR */}
         {assignOrder && (
@@ -1005,7 +1023,7 @@ const loadAll = async (sb) => {
               </div>
               <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
                 <button onClick={()=>setAssignOrder(null)} style={{padding:'8px 16px',border:`1px solid ${bdr}`,borderRadius:8,background:'none',cursor:'pointer',color:text,fontSize:13}}>Cancelar</button>
-                <button onClick={doAssign} disabled={processing} style={{padding:'8px 18px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600,opacity:processing?.6:1}}>
+                <button onClick={doAssign} disabled={processing} style={{padding:'8px 18px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600,opacity:processing?0.6:1}}>
                   {processing?'Asignando...':'Confirmar'}
                 </button>
               </div>
@@ -1026,7 +1044,7 @@ const loadAll = async (sb) => {
               </div>
               <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
                 <button onClick={()=>setStatusOrder(null)} style={{padding:'8px 16px',border:`1px solid ${bdr}`,borderRadius:8,background:'none',cursor:'pointer',color:text,fontSize:13}}>Cancelar</button>
-                <button onClick={doStatus} disabled={processing} style={{padding:'8px 18px',background:'#185FA5',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600,opacity:processing?.6:1}}>
+                <button onClick={doStatus} disabled={processing} style={{padding:'8px 18px',background:'#185FA5',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600,opacity:processing?0.6:1}}>
                   {processing?'Actualizando...':'Confirmar'}
                 </button>
               </div>
@@ -1265,31 +1283,17 @@ const loadAll = async (sb) => {
                   </div>
                 ))}
               </div>
-
-              {/* SITUACIÓN ESPECIAL - info detallada */}
               {selectedCliente.situacion_especial_nota && (
                 <div style={{marginBottom:'1.5rem',background:'#FFF0E0',border:'1px solid #EA580C',borderRadius:8,padding:'12px 16px'}}>
                   <div style={{fontWeight:600,fontSize:13,color:'#C2410C',marginBottom:8}}>⚠️ Situación Especial</div>
-                  <div style={{fontSize:13,color:'#92400E',marginBottom:6}}>
-                    <b>Motivo:</b> {selectedCliente.situacion_especial_nota}
-                  </div>
+                  <div style={{fontSize:13,color:'#92400E',marginBottom:6}}><b>Motivo:</b> {selectedCliente.situacion_especial_nota}</div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                    <div style={{fontSize:12,color:'#92400E'}}>
-                      <b>Registrado por:</b><br/>
-                      {selectedCliente.responsable?.full_name || selectedCliente.responsable?.email || '—'}
-                    </div>
-                    <div style={{fontSize:12,color:'#92400E'}}>
-                      <b>Rol:</b><br/>
-                      {ROLES_LABEL[selectedCliente.situacion_especial_rol] || selectedCliente.situacion_especial_rol || '—'}
-                    </div>
-                    <div style={{fontSize:12,color:'#92400E'}}>
-                      <b>Fecha:</b><br/>
-                      {fmtDate(selectedCliente.situacion_especial_fecha)}
-                    </div>
+                    <div style={{fontSize:12,color:'#92400E'}}><b>Registrado por:</b><br/>{selectedCliente.responsable?.full_name || selectedCliente.responsable?.email || '—'}</div>
+                    <div style={{fontSize:12,color:'#92400E'}}><b>Rol:</b><br/>{ROLES_LABEL[selectedCliente.situacion_especial_rol] || selectedCliente.situacion_especial_rol || '—'}</div>
+                    <div style={{fontSize:12,color:'#92400E'}}><b>Fecha:</b><br/>{fmtDate(selectedCliente.situacion_especial_fecha)}</div>
                   </div>
                 </div>
               )}
-
               {selectedCliente.contactos?.length > 0 && (
                 <div style={{marginBottom:'1.5rem'}}>
                   <div style={{fontWeight:600,fontSize:13,marginBottom:8}}>👤 Contactos</div>
@@ -1318,32 +1322,22 @@ const loadAll = async (sb) => {
               <div style={{display:'flex',gap:8,justifyContent:'flex-end',flexWrap:'wrap'}}>
                 {selectedCliente.status==='pendiente' && (
                   <button onClick={()=>{cambiarStatusCliente(selectedCliente.id,'activo');setSelectedCliente(null)}}
-                    style={{padding:'8px 16px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>
-                    ✅ Aprobar
-                  </button>
+                    style={{padding:'8px 16px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>✅ Aprobar</button>
                 )}
                 {selectedCliente.status==='activo' && (
                   <button onClick={()=>abrirSitEspecial(selectedCliente.id)}
-                    style={{padding:'8px 16px',background:'#EA580C',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>
-                    ⚠️ Situación Especial
-                  </button>
+                    style={{padding:'8px 16px',background:'#EA580C',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>⚠️ Situación Especial</button>
                 )}
                 {(selectedCliente.status==='activo'||selectedCliente.status==='situacion_especial') && (
                   <button onClick={()=>{cambiarStatusCliente(selectedCliente.id,'bloqueado');setSelectedCliente(null)}}
-                    style={{padding:'8px 16px',background:'#EF4444',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>
-                    Bloquear
-                  </button>
+                    style={{padding:'8px 16px',background:'#EF4444',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>Bloquear</button>
                 )}
                 {(selectedCliente.status==='bloqueado'||selectedCliente.status==='situacion_especial') && (
                   <button onClick={()=>{cambiarStatusCliente(selectedCliente.id,'activo');setSelectedCliente(null)}}
-                    style={{padding:'8px 16px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>
-                    Reactivar
-                  </button>
+                    style={{padding:'8px 16px',background:'#0F6E56',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>Reactivar</button>
                 )}
                 <button onClick={()=>setSelectedCliente(null)}
-                  style={{padding:'8px 16px',border:`1px solid ${bdr}`,borderRadius:8,background:'none',cursor:'pointer',fontSize:13,color:text}}>
-                  Cerrar
-                </button>
+                  style={{padding:'8px 16px',border:`1px solid ${bdr}`,borderRadius:8,background:'none',cursor:'pointer',fontSize:13,color:text}}>Cerrar</button>
               </div>
             </div>
           </div>
@@ -1354,9 +1348,7 @@ const loadAll = async (sb) => {
           <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'1rem'}}>
             <div style={{background:card,borderRadius:16,width:'100%',maxWidth:460,padding:'1.5rem',border:`1px solid ${bdr}`}}>
               <h3 style={{fontWeight:700,fontSize:16,color:'#C2410C',marginBottom:8}}>⚠️ Marcar Situación Especial</h3>
-              <p style={{fontSize:13,color:sub,marginBottom:'1rem'}}>
-                Esta acción restringe operaciones del cliente. Escribe el motivo detallado.
-              </p>
+              <p style={{fontSize:13,color:sub,marginBottom:'1rem'}}>Esta acción restringe operaciones del cliente. Escribe el motivo detallado.</p>
               <div style={{marginBottom:'1rem'}}>
                 <label style={{fontSize:12,color:sub,display:'block',marginBottom:4}}>Motivo *</label>
                 <textarea value={sitEspecialNota} onChange={e=>setSitEspecialNota(e.target.value)}
@@ -1365,19 +1357,13 @@ const loadAll = async (sb) => {
                   style={{width:'100%',padding:'9px 11px',border:`1px solid ${bdr}`,borderRadius:8,fontSize:13,color:text,background:bg,boxSizing:'border-box',resize:'vertical'}} />
               </div>
               <div style={{background:'#FFF0E0',border:'1px solid #EA580C',borderRadius:8,padding:'10px 12px',marginBottom:'1rem'}}>
-                <p style={{fontSize:12,color:'#92400E',margin:0}}>
-                  ⚠️ Solo <b>Admin</b> y <b>Gerente de Finanzas</b> pueden realizar este cambio. Quedará registrado con tu usuario, rol y fecha.
-                </p>
+                <p style={{fontSize:12,color:'#92400E',margin:0}}>⚠️ Solo <b>Admin</b> y <b>Gerente de Finanzas</b> pueden realizar este cambio. Quedará registrado con tu usuario, rol y fecha.</p>
               </div>
               <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
                 <button onClick={()=>setShowSitEspecialModal(false)}
-                  style={{padding:'8px 16px',border:`1px solid ${bdr}`,borderRadius:8,background:'none',cursor:'pointer',fontSize:13,color:text}}>
-                  Cancelar
-                </button>
+                  style={{padding:'8px 16px',border:`1px solid ${bdr}`,borderRadius:8,background:'none',cursor:'pointer',fontSize:13,color:text}}>Cancelar</button>
                 <button onClick={confirmarSitEspecial}
-                  style={{padding:'8px 18px',background:'#EA580C',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>
-                  Confirmar
-                </button>
+                  style={{padding:'8px 18px',background:'#EA580C',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600}}>Confirmar</button>
               </div>
             </div>
           </div>
